@@ -302,7 +302,7 @@ Function Zip-Actions
               [bool]$DeleteZip
        )
        
-       Log-Message "Entering Zip-Actions Function." -Severity 1
+       Log-Message "Entering Zip-Actions Function."
        
        switch ($PsCmdlet.ParameterSetName)
        {
@@ -322,7 +322,7 @@ Function Zip-Actions
                                   Start-sleep -milliseconds 500
                            }
                            
-                           Log-Message "Exiting Zip-Actions Function." -Severity 1
+                           Log-Message "Exiting Zip-Actions Function."
                            break           
                      }
                      
@@ -332,7 +332,7 @@ Function Zip-Actions
                            Add-Type -assembly "system.io.compression.filesystem"
                            $Compression = [System.IO.Compression.CompressionLevel]::Optimal
                            [io.compression.zipfile]::CreateFromDirectory($FolderPath, $ZipPath, $Compression, $True)
-                           Log-Message "Exiting Zip-Actions Function." -Severity 1
+                           Log-Message "Exiting Zip-Actions Function."
                            break
                      }
               }
@@ -345,7 +345,7 @@ Function Zip-Actions
                      
                      If ($DeleteZip) { Remove-item $ZipPath }
                      
-                     Log-Message "Exiting Zip-Actions Function." -Severity 1
+                     Log-Message "Exiting Zip-Actions Function."
 					break
 			#>
 			
@@ -456,23 +456,22 @@ Function Process-Results
 ######################################
     
 #Files
-######
-$ScriptLog = "$Env:windir\temp\script.txt"
-$FailedUpdateLog = "$Env:windir\temp\failedupdates.txt"
-$UpdateLog = "$Env:windir\temp\marketplaceupdates.txt"
-$CommandFile = "$Env:windir\Temp\SCCommandfile.txt"
+[STRING]$ScriptLog = "$Env:windir\temp\script.txt"
+[STRING]$FailedUpdateLog = "$Env:windir\temp\failedupdates.txt"
+[STRING]$UpdateLog = "$Env:windir\temp\marketplaceupdates.txt"
+[STRING]$CommandFile = "$Env:windir\Temp\SCCommandfile.txt"
 
 #Other Items
-############
-$KeyPhrase = 'Thank you for using LabTech.'
-$ExistCheckSQLDir = CheckRegKeyExists HKLM:\Software\Wow6432Node\Labtech\Setup MySQLDir;
-$DownloadNeeded = $true;
-$Script:ParsedUpdates = @()
-$FailedUpdates = @()
+[STRING]$KeyPhrase = 'Thank you for using LabTech.'
+[STRING]$ExtraItems = @"
+I:{368b2769-4bd4-4408-92aa-08f1fe32f7d6};I:{a9872fcd-63a8-4c7c-b532-df93410ce9b5};I:{5fb33973-c1ec-4cfb-b74b-aebea1c7032b};I:{b13fe3a1-0afd-4d58-a628-0b4632de886f};I:{ccf607eb-1c6d-4b29-b68c-7e127477a7c1};I:{58d5204e-a51a-4f28-af0d-e563517c0cce};I:{08a92050-9af4-4f7c-954c-9969c2afd239};I:{23c9ddef-d410-4150-9239-6c7f18a8dba6};I:{91bf72c8-6718-45f8-8915-2782f69d701b};I:{29486994-5a76-4658-bea8-2c1008078812};};
+"@
+[BOOL]$ExistCheckSQLDir = CheckRegKeyExists HKLM:\Software\Wow6432Node\Labtech\Setup MySQLDir;
+[BOOL]$DownloadNeeded = $True;
+[ARRAY]$Script:ParsedUpdates = @()
+[ARRAY]$FailedUpdates = @()
 
 #Clean Up Old Files
-###################
-
 remove-item $CommandFile -force -ea SilentlyContinue
 remove-item $ScriptLog -force -ea SilentlyContinue
 remove-item $FailedUpdateLog -force -ea SilentlyContinue
@@ -580,16 +579,16 @@ attrib -R *.* /S
 #Run the solution center update process.
 ################################################
 
-$ExtraItems = @"
-I:{4cc47b57-07fd-42c2-b5b8-57f0dd1f00ac};I:{368b2769-4bd4-4408-92aa-08f1fe32f7d6};I:{a9872fcd-63a8-4c7c-b532-df93410ce9b5};I:{5fb33973-c1ec-4cfb-b74b-aebea1c7032b};I:{b13fe3a1-0afd-4d58-a628-0b4632de886f};I:{ccf607eb-1c6d-4b29-b68c-7e127477a7c1};I:{58d5204e-a51a-4f28-af0d-e563517c0cce};I:{08a92050-9af4-4f7c-954c-9969c2afd239};I:{23c9ddef-d410-4150-9239-6c7f18a8dba6};I:{91bf72c8-6718-45f8-8915-2782f69d701b};I:{29486994-5a76-4658-bea8-2c1008078812};I:{e99f2d65-cdb4-4f0b-8ba1-5012b73c2963};
-"@
-
+#We add our extra items to the commandfile that marketplace.exe will use.
 Add-Content -Path $Commandfile -Value $ExtraItems
 
+#Declare the arguments to use with Start-process
 $AllArgs = "/update /fix /commandfile $Commandfile"
 
+#Call marketplace.exe in a hidden window and wait for it to finish. We send all output to $UpdateLog
 Start-Process -FilePath "${env:ProgramFiles(x86)}\LabTech Client\LTMarketplace.exe" -ArgumentList $AllArgs -PassThru -RedirectStandardOutput $UpdateLog -Wait -WindowStyle Hidden
 
+#Grab the results form the log for parsing.
 $updateResults = Get-content $Updatelog
 
 #Error Checking to validate the EXE ran correctly
@@ -601,11 +600,18 @@ If(!$updateResults)
     exit;
 }
 
-
-If($updateResults -notlike '*items installed successfully*')
+Else
 {
-    Log-Message "Something is wrong with the update log."
-    exit;
+    If($updateResults | Where-object { $_ -match 'items installed successfully'})
+    {
+        Log-Message "Update log contains valid results. Moving on."
+    }
+
+    Else
+    {
+        Log-Message "Something is wrong with the update log."
+        exit;
+    }
 }
 
 #Parse the update results into an object
@@ -617,3 +623,15 @@ Process-Results $updateResults
 ################################################
 
 $Script:ParsedUpdates | Where-Object {$_.Updated -ne 'Y'} | Select-Object -ExpandProperty Name | Add-Content -Path $FailedUpdateLog
+
+If ((Test-Path $FailedUpdateLog) -eq $False)
+{
+    Add-Content -Path $ScriptLog -Value "Complete Success"
+    exit;
+}
+
+ELSE
+{
+    Add-Content -Path $ScriptLog -Value "Check FailedUpdates Log"
+    exit;
+}
