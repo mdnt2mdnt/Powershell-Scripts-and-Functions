@@ -310,12 +310,12 @@ Function Zip-Actions
                      
                      If ([int]$psversiontable.psversion.Major -lt 3)
                      {
-                           
+                           Log-Message "Step 1"
                            New-Item $ZipPath -ItemType file
                            $shellApplication = new-object -com shell.application
                            $zipPackage = $shellApplication.NameSpace($ZipPath)
                            $files = Get-ChildItem -Path $FolderPath -Recurse
-                           
+                           Log-Message "Step 2"
                            foreach ($file in $files)
                            {
                                   $zipPackage.CopyHere($file.FullName)
@@ -353,6 +353,7 @@ Function Zip-Actions
 			$zipPackage = $shellApplication.NameSpace($ZipPath)
 			$destinationFolder = $shellApplication.NameSpace($FolderPath) 
 			$destinationFolder.CopyHere($zipPackage.Items(), 20)
+            Log-Message "Exiting Unzip Section"
 	
 		
 			
@@ -502,7 +503,7 @@ If ($DownloadNeeded)
 	# download mysql.zip and verify md5
 	$DownloadResult = Download-MySQLExe;
 	
-	#Log-Message $DownloadResult;
+	Log-Message $DownloadResult;
 	
 	if ($DownloadResult -ne $true)
 	{
