@@ -328,7 +328,7 @@ Function Zip-Actions
                      
                      Else
                      {
-                           
+                           Log-Message "Step 3"
                            Add-Type -assembly "system.io.compression.filesystem"
                            $Compression = [System.IO.Compression.CompressionLevel]::Optimal
                            [io.compression.zipfile]::CreateFromDirectory($FolderPath, $ZipPath, $Compression, $True)
@@ -338,28 +338,14 @@ Function Zip-Actions
               }
               
               'Unzip' {
-                     <#
-			Add-Type -assembly "system.io.compression.filesystem"
-                     $Compression = [System.IO.Compression.CompressionLevel]::Optimal
-                     [io.compression.zipfile]::ExtractToDirectory($ZipPath, $FolderPath)
-                     
-                     If ($DeleteZip) { Remove-item $ZipPath }
-                     
-                     Log-Message "Exiting Zip-Actions Function."
-					break
-			#>
-			
-			$shellApplication = new-object -com shell.application 
-			$zipPackage = $shellApplication.NameSpace($ZipPath)
-			$destinationFolder = $shellApplication.NameSpace($FolderPath) 
-			$destinationFolder.CopyHere($zipPackage.Items(), 20)
-            Log-Message "Exiting Unzip Section"
-	
-		
-			
-			
-			
-              }
+
+			    $shellApplication = new-object -com shell.application
+			    $zipPackage = $shellApplication.NameSpace($ZipPath)
+			    $destinationFolder = $shellApplication.NameSpace($FolderPath)
+			    $destinationFolder.CopyHere($zipPackage.Items(), 20)
+                Log-Message "Exiting Unzip Section"
+				
+                        }
        }
        
 }
@@ -463,6 +449,7 @@ Function Process-Results
 [STRING]$CommandFile = "$Env:windir\Temp\SCCommandfile.txt"
 
 #Other Items
+$VerbosePreference = 'continue'
 [STRING]$KeyPhrase = 'Thank you for using LabTech.'
 [STRING]$ExtraItems = @"
 I:{368b2769-4bd4-4408-92aa-08f1fe32f7d6};I:{a9872fcd-63a8-4c7c-b532-df93410ce9b5};I:{5fb33973-c1ec-4cfb-b74b-aebea1c7032b};I:{b13fe3a1-0afd-4d58-a628-0b4632de886f};I:{ccf607eb-1c6d-4b29-b68c-7e127477a7c1};I:{58d5204e-a51a-4f28-af0d-e563517c0cce};I:{08a92050-9af4-4f7c-954c-9969c2afd239};I:{23c9ddef-d410-4150-9239-6c7f18a8dba6};I:{91bf72c8-6718-45f8-8915-2782f69d701b};I:{29486994-5a76-4658-bea8-2c1008078812};};
@@ -497,7 +484,7 @@ If ($DownloadNeeded)
 {
 	
 	$DownloadURL = "https://ltpremium.s3.amazonaws.com/third_party_apps/mysql_x64/mysql.zip"
-	$MySQLExePath = "$env:windir\ServerMonitor\Packages\MySQL\mysql.exe"
+	$MySQLExePath = "$env:windir\temp\mysql.exe"
 	$MySQLZipPath = "$env:windir\temp\mysql.zip"
 	
 	# download mysql.zip and verify md5
@@ -514,7 +501,7 @@ If ($DownloadNeeded)
 	# Unzip mysql.exe to temp
 	New-item "$env:windir\ServerMonitor\Packages\MySQL" –ItemType Directory –FORCE | out-null;
 	
-	Zip-Actions -ZipPath $MySQLZipPath -FolderPath "$env:windir\ServerMonitor\Packages\MySQL\" -Unzip $true -DeleteZip $true | Out-Null;
+	Zip-Actions -ZipPath $MySQLZipPath -FolderPath "$env:windir\temp\" -Unzip $true -DeleteZip $true | Out-Null;
 	
 	if (-not (Test-Path $MySQLExePath))
 	{
@@ -555,7 +542,7 @@ $LTVersion = $ConnectionDetails.LTVersion;
 #Get the LT Share directory from the DB
 ################################################
 
-set-location $SQLDir;
+set-location "$env:windir\temp\";
 
 $LtShareQry = @"
 SELECT `localltshare` FROM `config`
@@ -569,12 +556,19 @@ If($LtshareDir -eq $null)
     exit;
 }
 
+Else
+{
+    Log-message "Local LT Share : $LTShareDir"
+}
+
 #Set the proper file and folder permissions.
 ################################################
 
 attrib -r $LTShareDir
 icacls $ltsharedir\* /T /Q /C /RESET
 Set-Location "C:\Program Files (x86)\LabTech Client"
+attrib -R *.* /S
+Set-Location  "C:\ProgramData\LabTech Client\Logs"
 attrib -R *.* /S
 
 #Run the solution center update process.
