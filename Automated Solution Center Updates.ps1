@@ -449,21 +449,68 @@ Function Process-Results
 [STRING]$CommandFile = "$Env:windir\Temp\SCCommandfile.txt"
 
 #Other Items
-$VerbosePreference = 'continue'
+$VerbosePreference = 'Continue'
+$ErrorActionPreference = 'Continue'
 [STRING]$KeyPhrase = 'Thank you for using LabTech.'
-[STRING]$ExtraItems = @"
-I:{368b2769-4bd4-4408-92aa-08f1fe32f7d6};I:{a9872fcd-63a8-4c7c-b532-df93410ce9b5};I:{5fb33973-c1ec-4cfb-b74b-aebea1c7032b};I:{b13fe3a1-0afd-4d58-a628-0b4632de886f};I:{ccf607eb-1c6d-4b29-b68c-7e127477a7c1};I:{58d5204e-a51a-4f28-af0d-e563517c0cce};I:{08a92050-9af4-4f7c-954c-9969c2afd239};I:{23c9ddef-d410-4150-9239-6c7f18a8dba6};I:{91bf72c8-6718-45f8-8915-2782f69d701b};I:{29486994-5a76-4658-bea8-2c1008078812};};
-"@
+[Array]$ExtraItemsArray = @()
+
+#Add all the custom items we want.
+$ExtraItemsArray += New-Object PSObject -Property @{
+    Name = 'Active Directory'
+    Guid = '368b2769-4bd4-4408-92aa-08f1fe32f7d6'
+}
+
+$ExtraItemsArray += New-Object PSObject -Property @{
+    Name = 'Deployment manager Dashboard'
+    Guid = '5fb33973-c1ec-4cfb-b74b-aebea1c7032b'
+}
+
+$ExtraItemsArray += New-Object PSObject -Property @{
+    Name = 'LT License Manager'
+    Guid = 'b13fe3a1-0afd-4d58-a628-0b4632de886f'
+}
+
+$ExtraItemsArray += New-Object PSObject -Property @{
+    Name = 'ScreenConnect'
+    Guid = 'ccf607eb-1c6d-4b29-b68c-7e127477a7c1'
+}
+
+$ExtraItemsArray += New-Object PSObject -Property @{
+    Name = 'Virtualization'
+    Guid = '58d5204e-a51a-4f28-af0d-e563517c0cce'
+}
+
+$ExtraItemsArray += New-Object PSObject -Property @{
+    Name = 'BlackListed Events'
+    Guid = '08a92050-9af4-4f7c-954c-9969c2afd239'
+}
+
+$ExtraItemsArray += New-Object PSObject -Property @{
+    Name = 'Database Management Pack'
+    Guid = '23c9ddef-d410-4150-9239-6c7f18a8dba6'
+}
+
+$ExtraItemsArray += New-Object PSObject -Property @{
+    Name = 'Messaging Management Pack'
+    Guid = '91bf72c8-6718-45f8-8915-2782f69d701b'
+}
+
+$ExtraItemsArray += New-Object PSObject -Property @{
+    Name = 'Web/Proxy Management Pack'
+    Guid = '29486994-5a76-4658-bea8-2c1008078812'
+}
+
+[STRING]$ExtraItems = $ExtraItemsArray | % {"I:`{$($_.guid)`};"}
 [BOOL]$ExistCheckSQLDir = CheckRegKeyExists HKLM:\Software\Wow6432Node\Labtech\Setup MySQLDir;
 [BOOL]$DownloadNeeded = $True;
 [ARRAY]$Script:ParsedUpdates = @()
 [ARRAY]$FailedUpdates = @()
 
 #Clean Up Old Files
-remove-item $CommandFile -force -ea SilentlyContinue
-remove-item $ScriptLog -force -ea SilentlyContinue
-remove-item $FailedUpdateLog -force -ea SilentlyContinue
-remove-item $UpdateLog -force -ea SilentlyContinue
+If($CommandFile)     {remove-item $CommandFile -force -ea SilentlyContinue | Out-null}
+If($ScriptLog)       {remove-item $ScriptLog -force -ea SilentlyContinue | Out-null}
+If($FailedUpdateLog) {remove-item $FailedUpdateLog -force -ea SilentlyContinue | Out-null}
+If($UpdateLog)       {remove-item $UpdateLog -force -ea SilentlyContinue | Out-null}
 
 #Get connected to the Labtech database
 ################################################
@@ -508,6 +555,7 @@ If ($DownloadNeeded)
 		Log-Message "[EXTRACTION FAILED] :: Failed to extract MySQL.exe from the zip archive. Script is exiting! Here are the Powershell errors: $($Error)";
 		return;
 	}
+
 	else
 	{
 		$SuccessfulDownload = $true;
@@ -523,15 +571,12 @@ if ($ConnectionDetails -eq $null)
 	$errorMessage = "Failed to determine MySQL connection details from this server.`n`n";
 	
 	Log-Message $errorMessage
-	Log-Message $errorMessage
-	
 	return;
 }
 
 else
 {
 	Log-Message "Successfully retrieved connection details."
-	Log-Message $ConnectionDetails;
 }
 
 $DBUser = $ConnectionDetails.user;
@@ -564,7 +609,7 @@ Else
 #Set the proper file and folder permissions.
 ################################################
 
-attrib -r $LTShareDir
+attrib -r $Ltsharedir
 icacls $ltsharedir\* /T /Q /C /RESET
 Set-Location "C:\Program Files (x86)\LabTech Client"
 attrib -R *.* /S
