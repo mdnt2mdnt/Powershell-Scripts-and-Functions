@@ -352,38 +352,6 @@ Function Zip-Actions
 
 Function Process-Results
 {
-       <#
-       .SYNOPSIS
-              A function to zip or unzip files.
-       
-       .DESCRIPTION
-              This function has 3 possible uses.
-              1) Zip a folder or files and save the zip to specified location.
-              2) Unzip a zip file to a specified folder.
-              3) Unzip a zip file and delete the original zip when complete.       
-      
- 
-       .PARAMETER ZipPath
-              The full path of the file to unzip or the full path of the zip file to be created.
-       
-       .PARAMETER FolderPath
-              The path to the files to zip or the path to the directory to unzip the files to.
-       
-       .PARAMETER Unzip
-              If $true the function will perform an unzip instead of a zip
-       
-       .PARAMETER DeleteZip
-              If set to $True the zip file will be removed at then end of the unzip operation.
-       
-       .EXAMPLE
-              PS C:\> Zip-Actions -ZipPath 'C:\Windows\Temp\ziptest.zip' -FolderPath 
-              PS C:\> Zip-Actions -ZipPath 'C:\Windows\Temp\ziptest.zip' -FolderPath 'C:\Windows\Temp\ZipTest' -Unzip $true
-              PS C:\> Zip-Actions -ZipPath 'C:\Windows\Temp\ziptest.zip' -FolderPath 'C:\Windows\Temp\ZipTest' -Unzip $true -DeleteZip $True
-
-       
-       .NOTES
-              Additional information about the function.
-#>
        
        [cmdletbinding()]
 
@@ -443,18 +411,21 @@ Function Process-Results
 ######################################
     
 #Files
+######################################
 [STRING]$ScriptLog = "$Env:windir\temp\script.txt"
 [STRING]$FailedUpdateLog = "$Env:windir\temp\failedupdates.txt"
 [STRING]$UpdateLog = "$Env:windir\temp\marketplaceupdates.txt"
 [STRING]$CommandFile = "$Env:windir\Temp\SCCommandfile.txt"
 
 #Other Items
-$VerbosePreference = 'Continue'
-$ErrorActionPreference = 'Continue'
+######################################
+$VerbosePreference = 'SilentlyContinue'
+$ErrorActionPreference = 'SilentlyContinue'
 [STRING]$KeyPhrase = 'Thank you for using LabTech.'
 [Array]$ExtraItemsArray = @()
 
 #Add all the custom items we want.
+######################################
 $ExtraItemsArray += New-Object PSObject -Property @{
     Name = 'Active Directory'
     Guid = '368b2769-4bd4-4408-92aa-08f1fe32f7d6'
@@ -507,13 +478,14 @@ $ExtraItemsArray += New-Object PSObject -Property @{
 [ARRAY]$FailedUpdates = @()
 
 #Clean Up Old Files
+######################################
 If($CommandFile)     {remove-item $CommandFile -force -ea SilentlyContinue | Out-null}
 If($ScriptLog)       {remove-item $ScriptLog -force -ea SilentlyContinue | Out-null}
 If($FailedUpdateLog) {remove-item $FailedUpdateLog -force -ea SilentlyContinue | Out-null}
 If($UpdateLog)       {remove-item $UpdateLog -force -ea SilentlyContinue | Out-null}
 
 #Get connected to the Labtech database
-################################################
+######################################
 
 if ($ExistCheckSQLDir -eq $true)
 {
@@ -585,7 +557,7 @@ $DBPass = $ConnectionDetails.pass;
 $LTVersion = $ConnectionDetails.LTVersion;
 
 #Get the LT Share directory from the DB
-################################################
+######################################
 
 set-location "$env:windir\temp\";
 
@@ -607,7 +579,7 @@ Else
 }
 
 #Set the proper file and folder permissions.
-################################################
+######################################
 
 attrib -r $Ltsharedir
 icacls $ltsharedir\* /T /Q /C /RESET
@@ -617,7 +589,7 @@ Set-Location  "C:\ProgramData\LabTech Client\Logs"
 attrib -R *.* /S
 
 #Run the solution center update process.
-################################################
+######################################
 
 #We add our extra items to the commandfile that marketplace.exe will use.
 Add-Content -Path $Commandfile -Value $ExtraItems
@@ -632,7 +604,7 @@ Start-Process -FilePath "${env:ProgramFiles(x86)}\LabTech Client\LTMarketplace.e
 $updateResults = Get-content $Updatelog
 
 #Error Checking to validate the EXE ran correctly
-################################################
+######################################
 
 If(!$updateResults)
 {
@@ -655,14 +627,14 @@ Else
 }
 
 #Parse the update results into an object
-################################################
+######################################
 
 Process-Results $updateResults
 
 #Find Failed Updates
-################################################
+######################################
 
-$Script:ParsedUpdates | Where-Object {$_.Updated -ne 'Y'} | Select-Object -ExpandProperty Name | Add-Content -Path $FailedUpdateLog
+$Script:ParsedUpdates | Where-Object {$_.Result -eq 'F'} | Select-Object -ExpandProperty Name | Add-Content -Path $FailedUpdateLog
 
 If ((Test-Path $FailedUpdateLog) -eq $False)
 {
